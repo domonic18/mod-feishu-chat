@@ -68,6 +68,7 @@ namespace ModFeishuChat
     {
         if (!msg || !running_.load())
         {
+            LOG_WARN("module", "[ModFeishuChat] Dropping message, worker is not running");
             delete msg;
             return;
         }
@@ -80,6 +81,7 @@ namespace ModFeishuChat
             delete dropped;
         }
 
+        LOG_INFO("module", "[ModFeishuChat] Enqueued message from '{}' for forwarding", msg->playerName);
         queue_.Push(msg);
     }
 
@@ -115,24 +117,28 @@ namespace ModFeishuChat
         nlohmann::json payload = FeishuMessageBuilder::Build(msg, messageFormat_, secret_);
         std::string body = payload.dump();
 
+        LOG_INFO("module", "[ModFeishuChat] Sending payload to Feishu: {}", body);
+
         httplib::Client cli(host_);
         cli.set_connection_timeout(timeoutSeconds_);
         cli.set_read_timeout(timeoutSeconds_);
         cli.set_write_timeout(timeoutSeconds_);
 
+        LOG_INFO("module", "[ModFeishuChat] POST {} -> {}", host_, path_);
         auto res = cli.Post(path_, body, "application/json");
         if (!res)
         {
-            LOG_ERROR("module", "[ModFeishuChat] Failed to send message to Feishu: network error");
+            LOG_ERROR("module", "[ModFeishuChat] Failed to send message to Feishu: network error (host={})", host_);
             return false;
         }
 
         if (res->status >= 200 && res->status < 300)
         {
+            LOG_INFO("module", "[ModFeishuChat] Feishu accepted message (HTTP {})", res->status);
             return true;
         }
 
-        LOG_ERROR("module", "[ModFeishuChat] Feishu returned HTTP {}", res->status);
+        LOG_ERROR("module", "[ModFeishuChat] Feishu returned HTTP {}: {}", res->status, res->body);
         return false;
     }
 

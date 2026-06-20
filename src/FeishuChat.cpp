@@ -86,7 +86,12 @@ namespace ModFeishuChat
     {
         if (client_)
         {
+            LOG_INFO("module", "[ModFeishuChat] Queueing chat message (type={}) from '{}'", chatType, player ? player->GetName() : "?");
             client_->Enqueue(new FeishuMessage(player, chatType, msg));
+        }
+        else
+        {
+            LOG_WARN("module", "[ModFeishuChat] Cannot queue message, webhook client is not running");
         }
     }
 
@@ -94,7 +99,12 @@ namespace ModFeishuChat
     {
         if (client_)
         {
+            LOG_INFO("module", "[ModFeishuChat] Queueing channel chat message (type={}) from '{}'", chatType, player ? player->GetName() : "?");
             client_->Enqueue(new FeishuMessage(player, chatType, msg, channel));
+        }
+        else
+        {
+            LOG_WARN("module", "[ModFeishuChat] Cannot queue channel message, webhook client is not running");
         }
     }
 
