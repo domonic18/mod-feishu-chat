@@ -117,7 +117,7 @@ namespace ModFeishuChat
             case CHAT_MSG_GUILD:
                 return "green";
             case CHAT_MSG_CHANNEL:
-                return "indigo";
+                return "orange";
             case CHAT_MSG_WHISPER:
                 return "purple";
             case CHAT_MSG_PARTY:
