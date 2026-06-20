@@ -8,6 +8,8 @@
 
 namespace ModFeishuChat
 {
+    class FeishuMessage;
+    class FeishuMessageBatcher;
     class FeishuWebhookClient;
 
     class FeishuChat
@@ -37,6 +39,7 @@ namespace ModFeishuChat
         FeishuChat& operator=(FeishuChat const& other) = delete;
 
         void ReloadConfig();
+        void FlushBatch(std::vector<FeishuMessage*>&& messages);
 
         bool enabled_;
         bool forwardSay_;
@@ -47,11 +50,16 @@ namespace ModFeishuChat
         std::string webhookUrl_;
         std::string secret_;
         std::string messageFormat_;
+        bool useInteractiveCard_;
+        bool useBatching_;
+        int batchWindowMs_;
+        size_t batchMaxSize_;
         int timeoutSeconds_;
         size_t maxQueueSize_;
         std::vector<std::string> filteredChannels_;
 
         FeishuWebhookClient* client_;
+        FeishuMessageBatcher* batcher_;
     };
 }
 

@@ -55,6 +55,28 @@
 #                     {message} - Chat message text
 #        Default:     "[{type}] {player} (Lv{level} {class}): {message}"
 #
+#    FeishuChat.UseInteractiveCard
+#        Description: Use Feishu interactive cards instead of plain text.
+#                     Interactive cards preserve WoW chat colors:
+#                     YELL = red, EMOTE = orange, GUILD = green,
+#                     CHANNEL = brown, SAY = default.
+#        Default:     0
+#
+#    FeishuChat.UseBatching
+#        Description: Combine multiple chat messages into a single HTTP request.
+#                     Reduces webhook overhead during busy chat periods.
+#        Default:     0
+#
+#    FeishuChat.BatchWindowMs
+#        Description: Maximum time in milliseconds to wait before flushing a batch.
+#                     Only used when UseBatching is enabled.
+#        Default:     1000
+#
+#    FeishuChat.BatchMaxSize
+#        Description: Maximum number of messages in a single batch.
+#                     A batch is flushed immediately when this size is reached.
+#        Default:     20
+#
 #    FeishuChat.HttpTimeoutSeconds
 #        Description: HTTP client timeout in seconds
 #        Default:     5
@@ -78,6 +100,11 @@ FeishuChat.ForwardChannel = 1
 FeishuChat.FilteredChannels = "Crb,LFGForwarder,TCForwarder,LFGShout,xtensionxtooltip2,QuickHealMod"
 
 FeishuChat.MessageFormat = "[{type}] {player} (Lv{level} {class}): {message}"
+
+FeishuChat.UseInteractiveCard = 0
+FeishuChat.UseBatching = 0
+FeishuChat.BatchWindowMs = 1000
+FeishuChat.BatchMaxSize = 20
 
 FeishuChat.HttpTimeoutSeconds = 5
 FeishuChat.MaxQueueSize = 1000
