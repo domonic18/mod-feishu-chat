@@ -2,7 +2,6 @@
 
 #include "FeishuSignature.h"
 #include "SharedDefines.h"
-#include "StringFormat.h"
 
 namespace ModFeishuChat
 {

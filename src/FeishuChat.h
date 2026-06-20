@@ -1,7 +1,6 @@
 #ifndef _MOD_FEISHU_CHAT_H_
 #define _MOD_FEISHU_CHAT_H_
 
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -38,7 +37,6 @@ namespace ModFeishuChat
         FeishuChat& operator=(FeishuChat const& other) = delete;
 
         void ReloadConfig();
-        void AddScripts() const;
 
         bool enabled_;
         bool forwardSay_;

@@ -1,5 +1,6 @@
 #include "FeishuChat.h"
 
+#include "Channel.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
 

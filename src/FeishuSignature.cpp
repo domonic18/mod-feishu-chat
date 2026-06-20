@@ -1,5 +1,6 @@
 #include "FeishuSignature.h"
 
+#include <ctime>
 #include <vector>
 #include <sstream>
 
@@ -18,8 +19,12 @@ namespace ModFeishuChat
         outTimestamp = oss.str();
 
         std::string const stringToSign = outTimestamp + "\n" + secret;
-        auto digest = Acore::Crypto::HMAC_SHA256::GetDigestOf(secret, stringToSign);
 
+        Acore::Crypto::HMAC_SHA256 hash(reinterpret_cast<uint8 const*>(secret.data()), secret.size());
+        hash.UpdateData(reinterpret_cast<uint8 const*>(stringToSign.data()), stringToSign.size());
+        hash.Finalize();
+
+        auto digest = hash.GetDigest();
         std::vector<uint8> digestVec(digest.begin(), digest.end());
         outSign = Acore::Encoding::Base64::Encode(digestVec);
     }

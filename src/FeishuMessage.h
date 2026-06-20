@@ -3,8 +3,8 @@
 
 #include <ctime>
 #include <string>
-#include <string>
 
+#include "Channel.h"
 #include "Player.h"
 
 namespace ModFeishuChat

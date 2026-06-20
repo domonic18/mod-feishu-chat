@@ -8,6 +8,9 @@
 
 namespace ModFeishuChat
 {
+    extern void AddFeishuChatPlayerScripts();
+    extern void AddFeishuChatWorldScripts();
+
     FeishuChat::FeishuChat()
         : enabled_(false),
         forwardSay_(true),
@@ -22,7 +25,8 @@ namespace ModFeishuChat
         maxQueueSize_(1000),
         client_(nullptr)
     {
-        AddScripts();
+        AddFeishuChatPlayerScripts();
+        AddFeishuChatWorldScripts();
     }
 
     FeishuChat::~FeishuChat()
@@ -105,7 +109,7 @@ namespace ModFeishuChat
         }
 
         LOG_INFO("module", "[ModFeishuChat] Starting Feishu chat forwarding...");
-        client_ = new FeishuWebhookClient(webhookUrl_, secret_, timeoutSeconds_, maxQueueSize_);
+        client_ = new FeishuWebhookClient(webhookUrl_, secret_, messageFormat_, timeoutSeconds_, maxQueueSize_);
         client_->Start();
     }
 
@@ -152,14 +156,5 @@ namespace ModFeishuChat
         {
             filteredChannels_.emplace_back(filters.substr(start));
         }
-    }
-
-    void FeishuChat::AddScripts() const
-    {
-        // Implemented in PlayerScripts.cpp and WorldScripts.cpp.
-        extern void AddFeishuChatPlayerScripts();
-        extern void AddFeishuChatWorldScripts();
-        AddFeishuChatPlayerScripts();
-        AddFeishuChatWorldScripts();
     }
 }

@@ -1,6 +1,5 @@
 #include "FeishuWebhookClient.h"
 
-#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include "httplib.h"
 
 #include "FeishuMessageBuilder.h"
@@ -10,11 +9,13 @@ namespace ModFeishuChat
 {
     FeishuWebhookClient::FeishuWebhookClient(std::string const& webhookUrl,
                                              std::string const& secret,
+                                             std::string const& messageFormat,
                                              int timeoutSeconds,
                                              size_t maxQueueSize)
         : host_(""),
         path_(""),
         secret_(secret),
+        messageFormat_(messageFormat),
         timeoutSeconds_(timeoutSeconds),
         maxQueueSize_(maxQueueSize),
         running_(false)
@@ -30,9 +31,14 @@ namespace ModFeishuChat
         Stop();
     }
 
+    bool FeishuWebhookClient::IsValid() const
+    {
+        return !host_.empty();
+    }
+
     void FeishuWebhookClient::Start()
     {
-        if (host_.empty())
+        if (!IsValid())
         {
             return;
         }
@@ -44,18 +50,25 @@ namespace ModFeishuChat
     void FeishuWebhookClient::Stop()
     {
         running_.store(false);
-        queue_.Cancel();
+        queue_.Shutdown();
 
         if (worker_.joinable())
         {
             worker_.join();
         }
+
+        FeishuMessage* msg = nullptr;
+        while (queue_.Pop(msg))
+        {
+            delete msg;
+        }
     }
 
     void FeishuWebhookClient::Enqueue(FeishuMessage* msg)
     {
-        if (!msg)
+        if (!msg || !running_.load())
         {
+            delete msg;
             return;
         }
 
@@ -75,14 +88,17 @@ namespace ModFeishuChat
         while (running_.load())
         {
             FeishuMessage* msg = nullptr;
-            if (!queue_.Pop(msg))
-            {
-                continue;
-            }
-
+            queue_.WaitAndPop(msg);
             if (msg)
             {
-                Send(*msg);
+                try
+                {
+                    Send(*msg);
+                }
+                catch (...)
+                {
+                    LOG_ERROR("module", "[ModFeishuChat] Unhandled exception while sending message to Feishu");
+                }
                 delete msg;
             }
         }
@@ -96,9 +112,7 @@ namespace ModFeishuChat
 
     bool FeishuWebhookClient::Send(FeishuMessage const& msg)
     {
-        // TODO: pass message format from config instead of hardcoding
-        std::string const format = "[{type}] {player} (Lv{level} {class}): {message}";
-        nlohmann::json payload = FeishuMessageBuilder::Build(msg, format, secret_);
+        nlohmann::json payload = FeishuMessageBuilder::Build(msg, messageFormat_, secret_);
         std::string body = payload.dump();
 
         httplib::Client cli(host_);
@@ -126,6 +140,12 @@ namespace ModFeishuChat
     {
         std::string::size_type schemeEnd = url.find("://");
         if (schemeEnd == std::string::npos)
+        {
+            return false;
+        }
+
+        std::string scheme = url.substr(0, schemeEnd);
+        if (scheme != "http" && scheme != "https")
         {
             return false;
         }

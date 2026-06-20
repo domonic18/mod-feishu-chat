@@ -16,6 +16,7 @@ namespace ModFeishuChat
     public:
         FeishuWebhookClient(std::string const& webhookUrl,
                             std::string const& secret,
+                            std::string const& messageFormat,
                             int timeoutSeconds,
                             size_t maxQueueSize);
         ~FeishuWebhookClient();
@@ -23,15 +24,17 @@ namespace ModFeishuChat
         void Start();
         void Stop();
         void Enqueue(FeishuMessage* msg);
+        bool IsValid() const;
 
     private:
         void WorkerThread();
         bool Send(FeishuMessage const& msg);
-        bool ParseUrl(std::string const& url, std::string& outHost, std::string& outPath);
+        static bool ParseUrl(std::string const& url, std::string& outHost, std::string& outPath);
 
         std::string host_;
         std::string path_;
         std::string secret_;
+        std::string messageFormat_;
         int timeoutSeconds_;
         size_t maxQueueSize_;
 
