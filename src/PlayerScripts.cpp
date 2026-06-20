@@ -18,8 +18,14 @@ namespace ModFeishuChat
         })
         { }
 
-        void OnPlayerBeforeSendChatMessage(Player* player, uint32& type, uint32& /*lang*/, std::string& msg) override
+        void OnPlayerBeforeSendChatMessage(Player* player, uint32& type, uint32& lang, std::string& msg) override
         {
+            if (lang == LANG_ADDON)
+            {
+                LOG_DEBUG("module", "[ModFeishuChat] Ignoring addon SAY/YELL/EMOTE message from '{}'", player ? player->GetName() : "?");
+                return;
+            }
+
             FeishuChat& chat = FeishuChat::Instance();
 
             if (type == CHAT_MSG_SAY && chat.ShouldForwardSay())
@@ -39,8 +45,14 @@ namespace ModFeishuChat
             }
         }
 
-        bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg, Guild* /*guild*/) override
+        bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Guild* /*guild*/) override
         {
+            if (lang == LANG_ADDON)
+            {
+                LOG_DEBUG("module", "[ModFeishuChat] Ignoring addon GUILD message from '{}'", player ? player->GetName() : "?");
+                return true;
+            }
+
             FeishuChat& chat = FeishuChat::Instance();
 
             if (type == CHAT_MSG_GUILD && chat.ShouldForwardGuild())
@@ -52,8 +64,14 @@ namespace ModFeishuChat
             return true;
         }
 
-        bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg, Channel* channel) override
+        bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Channel* channel) override
         {
+            if (lang == LANG_ADDON)
+            {
+                LOG_DEBUG("module", "[ModFeishuChat] Ignoring addon CHANNEL message from '{}'", player ? player->GetName() : "?");
+                return true;
+            }
+
             if (!channel)
             {
                 return true;
