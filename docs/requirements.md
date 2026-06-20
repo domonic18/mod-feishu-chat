@@ -14,6 +14,8 @@
 - 过滤常见插件频道，避免无效信息刷屏。
 - 通过飞书自定义机器人 webhook 直接推送消息，无需中间服务。
 - 支持飞书机器人签名校验（可选）。
+- **在飞书侧还原魔兽世界聊天颜色风格，提升管理员阅读体验。**
+- **对高频聊天进行批量聚合，避免每条消息都发起一次 HTTP 请求。**
 - 保证 worldserver 主线程不被网络 IO 阻塞。
 - 输出可运行的模块骨架与完整的技术方案文档，供需求澄清与技术评审。
 
@@ -26,6 +28,8 @@
 | 服务器管理员 | 我希望飞书机器人支持签名校验，防止 webhook 被恶意利用。 |
 | 服务器管理员 | 我希望模块启用/禁用、聊天类型过滤、消息格式都可以通过配置文件调整。 |
 | 服务器管理员 | 我希望飞书网络波动不会影响 worldserver 正常运行。 |
+| 服务器管理员 | 我希望飞书群里的消息颜色与游戏内一致（如公会绿色、频道棕色），方便快速识别聊天类型。 |
+| 服务器管理员 | 我希望高峰期不会收到刷屏式的单条消息，而是聚合后的批量消息。 |
 
 ## 4. 功能需求
 
@@ -33,7 +37,8 @@
 
 模块应注册 `PlayerScript` 钩子：
 
-- `PLAYERHOOK_CAN_PLAYER_USE_CHAT`：捕获 `SAY`、`YELL`、`EMOTE`、`GUILD`。
+- `PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE`：捕获 `SAY`、`YELL`、`EMOTE`。
+- `PLAYERHOOK_CAN_PLAYER_USE_GUILD_CHAT`：捕获 `GUILD` 聊天。
 - `PLAYERHOOK_CAN_PLAYER_USE_CHANNEL_CHAT`：捕获玩家频道聊天。
 
 聊天钩子的处理方式参考 `mod-chat-transmitter/src/PlayerScripts.cpp`。
@@ -66,7 +71,10 @@ Crb, LFGForwarder, TCForwarder, LFGShout, xtensionxtooltip2, QuickHealMod
 https://open.feishu.cn/open-apis/bot/v2/hook/{hook_key}
 ```
 
-默认使用 `msg_type: text` 纯文本格式。
+支持两种消息格式：
+
+- `msg_type: text`：纯文本，兼容简单场景。
+- `msg_type: interactive`：消息卡片，支持 `lark_md` 与 `<font color='...'>` 标签。
 
 ### FR-5 飞书签名校验
 
@@ -99,7 +107,33 @@ https://open.feishu.cn/open-apis/bot/v2/hook/{hook_key}
 [{type}] {player} (Lv{level} {class}): {message}
 ```
 
-### FR-7 模块启停与热重载
+### FR-7 聊天颜色风格
+
+当 `FeishuChat.UseInteractiveCard = 1` 时，模块使用 `interactive` 消息卡片，并按魔兽世界默认聊天颜色渲染消息：
+
+| 聊天类型 | 颜色 |
+|---|---|
+| SAY | 默认（黑色/无颜色标签） |
+| YELL | 红色 |
+| EMOTE | 橙色 |
+| GUILD | 绿色 |
+| CHANNEL | 棕色 `#8B4513` |
+
+颜色通过 `lark_md` 的 `<font color='...'>` 标签实现。
+
+由于颜色已经标识聊天类型，启用 interactive 卡片时会自动移除消息模板中的 `[{type}]` 前缀，避免冗余信息。
+
+### FR-8 消息批量聚合
+
+当 `FeishuChat.UseBatching = 1` 时，模块不立即发送每条消息，而是在后台线程中聚合：
+
+- 配置 `FeishuChat.BatchWindowMs`：聚合窗口，默认 1000 毫秒。
+- 配置 `FeishuChat.BatchMaxSize`：单次最大消息数，默认 20 条。
+- 达到窗口时间或数量上限时，一次性发送聚合后的消息。
+
+批量消息使用 `interactive` 卡片，每条聊天作为独立的 `div` 元素。
+
+### FR-9 模块启停与热重载
 
 - 在 `WORLDHOOK_ON_STARTUP` 时启动后台工作线程。
 - 在 `WORLDHOOK_ON_SHUTDOWN` 时安全停止工作线程。
@@ -115,6 +149,8 @@ https://open.feishu.cn/open-apis/bot/v2/hook/{hook_key}
 | NFR-4 | 队列背压 | 消息队列设置上限，超限时丢弃最旧消息并记录警告日志。 |
 | NFR-5 | 安全性 | 配置中的 webhook URL 与签名校验密钥不得打印到日志。 |
 | NFR-6 | 可维护性 | 代码遵循 AzerothCore 风格（4 空格缩进、Allman 大括号、`{}` 格式化字符串等）。 |
+| NFR-7 | 低频率 | 通过批量聚合将 HTTP 请求频率控制在合理范围，避免触发飞书限流。 |
+| NFR-8 | 可读性 | 飞书侧消息颜色与格式应帮助管理员快速区分聊天类型。 |
 
 ## 6. 约束与假设
 
@@ -130,9 +166,10 @@ https://open.feishu.cn/open-apis/bot/v2/hook/{hook_key}
 
 1. **公会频道**：需要转发 `GUILD` 聊天（已通过 `CHAT_MSG_GUILD` 类型捕获）。队伍、团队、密语仍默认不转发。
 2. **玩家身份信息**：仅附带**玩家角色名**，不附带账号名与最后登录 IP。
-3. **消息格式**：采用纯文本 `msg_type: text`，暂不使用富文本卡片。
+3. **消息格式**：采用纯文本 `msg_type: text` 作为默认，颜色卡片作为可选项。
 4. 消息队列上限与 HTTP 超时的默认值是否合理？
-5. 是否需要在飞书消息中 `@` 指定管理员？可在模板中通过飞书 `@` 语法实现。
+5. 批量窗口 1 秒 / 批量上限 20 条是否满足需求？
+6. 是否需要在飞书消息中 `@` 指定管理员？可在模板中通过飞书 `@` 语法实现。
 
 ## 8. 验收标准
 
@@ -141,6 +178,8 @@ https://open.feishu.cn/open-apis/bot/v2/hook/{hook_key}
 - [ ] 配置启用后，游戏内 SAY/YELL/EMOTE/GUILD/频道聊天能在 5 秒内出现在飞书群。
 - [ ] 插件频道内容不会出现在飞书群。
 - [ ] 关闭 `FeishuChat.Enabled` 后模块不产生任何网络请求。
+- [ ] 启用 `UseInteractiveCard` 后，飞书消息按类型显示不同颜色。
+- [ ] 启用 `UseBatching` 后，1 秒内多条消息合并为一条飞书消息发送。
 - [ ] worldserver 运行期间，模拟飞书网络异常（如断开外网）不会导致崩溃或明显卡顿。
 
 ## 9. 可选需求（后续版本）
@@ -160,3 +199,13 @@ https://open.feishu.cn/open-apis/bot/v2/hook/{hook_key}
   /whisper <player> <message>
   ```
 - 该功能会显著改变架构（从单向推送变为双向通信），建议在 MVP 稳定后再评估实现。
+
+## 10. 参考文件
+
+- `modules/mod-chat-transmitter/src/PlayerScripts.cpp`
+- `modules/mod-chat-transmitter/src/WorldScripts.cpp`
+- `modules/mod-chat-transmitter/src/ChatTransmitter.h`
+- `modules/mod-feishu-chat/docs/development.md`
+- `src/common/Cryptography/HMAC.h`
+- `src/common/Encoding/Base64.h`
+- `src/common/Utilities/ProducerConsumerQueue.h`
